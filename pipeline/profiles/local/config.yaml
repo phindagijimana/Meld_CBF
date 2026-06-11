@@ -1,0 +1,5 @@
+# Snakemake local profile (single machine). meldcbf run --profile local
+cores: 4
+printshellcmds: True
+rerun-incomplete: True
+latency-wait: 30

@@ -1,0 +1,22 @@
+# Host-side conda env for the meldcbf driver (Snakemake + CLI + roll-up).
+# The heavy neuro work (FreeSurfer, mri_coreg, GNN, nibabel/nilearn stats)
+# runs INSIDE the MELD apptainer image, not from this env.
+#
+#   conda env create -f workflow/envs/meldcbf.yaml
+#   conda activate meldcbf
+#   pip install -e .        # installs the `meldcbf` console script
+name: meldcbf
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.9
+  - snakemake-minimal>=8
+  - snakemake-executor-plugin-slurm>=0.10
+  - click>=8
+  - pandas>=1.5
+  - pyyaml>=6
+  - nibabel>=4
+  - nilearn>=0.10
+  - matplotlib>=3.5
+  - graphviz   # for `meldcbf dag`

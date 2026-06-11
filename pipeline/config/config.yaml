@@ -1,0 +1,50 @@
+# ===========================================================================
+# config.yaml — MELD + CBF pipeline (Snakemake)
+#
+# Every path is absolute so the workflow runs identically from any cwd / node.
+# Override on the CLI with:  meldcbf <cmd> --config work=/scratch/work ...
+# or edit here. Re-run `meldcbf samples` after changing source paths.
+# ===========================================================================
+
+# --- Project layout --------------------------------------------------------
+project_root:  /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF
+pipeline_dir:  /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/pipeline
+data_dir:      /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/data
+work:          /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/work
+mapping:       /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/CBF_BIDS_SUB.csv
+resolution_csv: /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/pipeline/CBF_session_resolution.csv
+samples:       /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/pipeline/config/samples.tsv
+
+# --- Raw upstream sources (read by `meldcbf samples` / the prepare rule) ----
+bids_root:     /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CIDUR_BIDS/data_bids
+cbf_src_root:  /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CBF_T1_rage
+fallback_session: ses-1
+
+# --- MELD container assets (reuse the institutional install) ----------------
+meld_install:    /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data
+sif:             /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data/docker_version/meld_graph_v2.2.4.sif
+fs_license:      /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data/docker_version/freesurfer_license.txt
+meld_license:    /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data/docker_version/meld_license.txt
+models_src:      /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data/models
+meld_params_src: /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data/meld_params
+
+# --- Container runtime ------------------------------------------------------
+apptainer_bin:      apptainer
+freesurfer_home_in: /opt/freesurfer-7.2.0
+
+# --- Statistics parameters (cbf_stats.py / aggregate) -----------------------
+# Voxelwise hypoperfusion z threshold (vs cortical GM).
+hypo_z: -1.5
+# ROI contralateral asymmetry (%) at/below which a lesion is called
+# "hypoperfused / concordant" (negative = ipsilateral hypoperfusion).
+asym_concordance_pct: -8.0
+# Minimum Dice(cluster, hypoperfused GM) to call spatial concordance.
+dice_concordance: 0.10
+
+# --- Resource hints (consumed by the SLURM profile via set-resources) -------
+# MELD includes a full FreeSurfer/FastSurfer recon: give it real time + memory.
+resources:
+  meld:      { mem_mb: 64000, cpus_per_task: 8, runtime: 1440 }
+  register:  { mem_mb: 16000, cpus_per_task: 2, runtime: 120 }
+  visualize: { mem_mb: 8000,  cpus_per_task: 1, runtime: 30 }
+  prepare:   { mem_mb: 4000,  cpus_per_task: 1, runtime: 20 }

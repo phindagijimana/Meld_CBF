@@ -1,0 +1,30 @@
+# ===========================================================================
+# Keep ALL patient data and subject-identifier files OUT of version control.
+# This repository publishes pipeline CODE + DOCS only.
+# ===========================================================================
+
+# --- Patient imaging (PHI) — never commit --------------------------------
+data/
+work/
+*.nii
+*.nii.gz
+*.mgz
+*.dcm
+
+# --- Subject-identifier / linkage tables (EP_IDs, absolute paths) ---------
+CBF_BIDS_SUB.csv
+pipeline/CBF_session_resolution.csv
+pipeline/config/samples.tsv
+
+# --- Python / tooling caches ---------------------------------------------
+__pycache__/
+*.pyc
+.cache/
+.tmp/
+.snakemake/
+*.egg-info/
+build/
+dist/
+dag.svg
+dag.dot
+.ipynb_checkpoints/
