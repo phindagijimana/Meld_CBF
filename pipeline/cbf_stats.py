@@ -10,6 +10,7 @@ Quantitative CBF ↔ MELD-prediction statistics, all in MELD's conformed grid:
     - host_roi      : dominant Desikan/Destrieux region the cluster sits in
     - ipsi/contra ROI CBF + roi_asym_pct : ROI-level L↔R asymmetry (aparc+aseg homologue)
     - cluster_vs_contra_pct : cluster CBF vs its contralateral ROI
+    - cluster_mirror_* : lesion-shape mirror asymmetry (nibabel L↔R flip of cluster mask)
     - frac_hypo     : fraction of cluster voxels with voxelwise z < HYPO_Z
     - dice_hypo     : Dice(cluster, hypoperfused cortical GM at z < HYPO_Z)   [concordance]
 
@@ -86,6 +87,22 @@ def pct_asym(a, b):
     return round((a - b) / denom * 100.0, 2)
 
 
+def lr_axis(affine):
+    """Voxel axis index corresponding to the world left-right (RAS x) direction."""
+    cosines = np.abs(affine[:3, :3] @ np.array([1.0, 0.0, 0.0]))
+    return int(np.argmax(cosines))
+
+
+def mirror_asym_index(a, b):
+    """Normalized asymmetry index: (a−b)/(a+b). Range ~[−1, 1]; negative = a < b."""
+    if a is None or b is None:
+        return ""
+    denom = a + b
+    if denom == 0:
+        return ""
+    return round((a - b) / denom, 4)
+
+
 def main():
     if len(sys.argv) < 6:
         print(__doc__)
@@ -120,6 +137,7 @@ def main():
         lut = {}
 
     labels = np.unique(pred[pred > 0]).astype(int)
+    lr_ax = lr_axis(cbf_img.affine)
     rows = []
 
     def roi_mean(lbl):
@@ -155,6 +173,11 @@ def main():
                     contra = roi_mean(h)
                     roi_asym = pct_asym(ipsi, contra)
                     clus_vs_contra = pct_asym(cmean, contra)
+            # lesion-shape mirror asymmetry: flip cluster mask L↔R, sample same CBF map
+            mirror_mask = np.flip(mask, axis=lr_ax)
+            mirror_vals = cbf[mirror_mask & np.isfinite(cbf)]
+            mirror_contra = float(np.mean(mirror_vals)) if mirror_vals.size else None
+            mirror_ai = mirror_asym_index(cmean, mirror_contra)
             # concordance
             frac_hypo = round(float(np.mean(hypo_gm[mask])), 3) if mask.any() else ""
             inter = int(np.sum(mask & hypo_gm))
@@ -165,6 +188,9 @@ def main():
                 "contra_roi_cbf": round(contra, 4) if isinstance(contra, float) else "",
                 "roi_asym_pct": roi_asym,
                 "cluster_vs_contra_pct": clus_vs_contra,
+                "cluster_mirror_ipsi_cbf": round(cmean, 4),
+                "cluster_mirror_contra_cbf": round(mirror_contra, 4) if isinstance(mirror_contra, float) else "",
+                "cluster_mirror_ai": mirror_ai,
                 "frac_hypo": frac_hypo, "dice_hypo": dice,
             })
         return row
@@ -179,7 +205,9 @@ def main():
     fields = ["subject", "cluster", "n_voxels", "volume_mm3",
               "cbf_mean", "cbf_std", "cbf_median", "gm_z",
               "host_roi", "host_roi_name", "ipsi_roi_cbf", "contra_roi_cbf",
-              "roi_asym_pct", "cluster_vs_contra_pct", "frac_hypo", "dice_hypo"]
+              "roi_asym_pct", "cluster_vs_contra_pct",
+              "cluster_mirror_ipsi_cbf", "cluster_mirror_contra_cbf", "cluster_mirror_ai",
+              "frac_hypo", "dice_hypo"]
     with open(out_csv, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
@@ -188,7 +216,8 @@ def main():
     print(f"[stats] GM mean={gm_mean:.2f} sd={gm_sd:.2f}  | {len(labels)} cluster(s); wrote {out_csv}")
     for r in rows:
         print("[stats]  ", {k: r.get(k, "") for k in
-                            ("cluster", "n_voxels", "cbf_mean", "gm_z", "roi_asym_pct", "frac_hypo", "dice_hypo")})
+                            ("cluster", "n_voxels", "cbf_mean", "gm_z", "roi_asym_pct",
+                             "cluster_mirror_ai", "frac_hypo", "dice_hypo")})
     return 0
 
 

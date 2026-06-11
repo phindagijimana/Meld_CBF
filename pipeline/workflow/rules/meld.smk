@@ -8,8 +8,16 @@ rule meld:
         t1mgz=meld_t1mgz("{sub}"),
     params:
         cmd=lambda wc: apptainer_cmd(
-            f"python scripts/new_patient_pipeline/new_pt_pipeline.py -id {wc.sub}"
+            "python scripts/new_patient_pipeline/new_pt_pipeline.py "
+            f"-id {wc.sub}{' -fastsurfer' if config.get('meld_fastsurfer') else ''}"
         ),
+        # MELD aborts if a partial recon exists; snakemake only runs this rule
+        # when outputs are missing/stale, so clearing partial state is safe.
+        stale=lambda wc: " ".join([
+            os.path.join(WORK, "output", "fs_outputs", wc.sub),
+            os.path.join(WORK, "output", "predictions_reports", wc.sub),
+            os.path.join(WORK, "output", "preprocessed_surf_data", wc.sub),
+        ]),
     log:
         os.path.join(LOG_DIR, "meld_{sub}.log"),
     resources:
@@ -17,4 +25,4 @@ rule meld:
         runtime=res("meld", "runtime", 1440),
         cpus_per_task=res("meld", "cpus_per_task", 8),
     shell:
-        "{params.cmd} > {log} 2>&1"
+        "rm -rf {params.stale} && {params.cmd} > {log} 2>&1"

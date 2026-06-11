@@ -31,6 +31,9 @@ meld_params_src: /mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Gra
 # --- Container runtime ------------------------------------------------------
 apptainer_bin:      apptainer
 freesurfer_home_in: /opt/freesurfer-7.2.0
+# Use FastSurfer instead of full FreeSurfer recon (much faster). Adds
+# `-fastsurfer` to the MELD call. Leave false to match the prior FS-based runs.
+meld_fastsurfer:    false
 
 # --- Statistics parameters (cbf_stats.py / aggregate) -----------------------
 # Voxelwise hypoperfusion z threshold (vs cortical GM).

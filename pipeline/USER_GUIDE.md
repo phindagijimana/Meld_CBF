@@ -123,6 +123,9 @@ MELD run's own `aparc+aseg`:
 | `ipsi_roi_cbf`, `contra_roi_cbf` | mean CBF in that ROI vs its mirror-hemisphere homologue |
 | `roi_asym_pct` | **ROI contralateral asymmetry** `(ipsi−contra)/mean×100`. The classic perfusion-lesion sign; negative ⇒ ipsilateral hypoperfusion. |
 | `cluster_vs_contra_pct` | cluster CBF vs the contralateral ROI |
+| `cluster_mirror_ipsi_cbf` | mean CBF inside the lesion (same as `cbf_mean`) |
+| `cluster_mirror_contra_cbf` | mean CBF in the **mirror** of the lesion (cluster mask flipped L↔R on the registered CBF map) |
+| `cluster_mirror_ai` | **mirror asymmetry index** `(ipsi−contra)/(ipsi+contra)`. Range ~[−1, 1]; negative ⇒ ipsilateral hypoperfusion vs homotopic mirror. Note: `roi_asym_pct ≈ 200 × cluster_mirror_ai` when comparing the same pair with different denominators. |
 | `frac_hypo` | fraction of cluster voxels that are hypoperfused (`z < −1.5`) |
 | `dice_hypo` | **concordance**: Dice overlap between the MELD cluster and hypoperfused cortical GM. High ⇒ CBF independently corroborates MELD. |
 
