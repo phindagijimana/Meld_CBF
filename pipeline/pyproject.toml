@@ -4,23 +4,31 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meldcbf"
-version = "0.1.0"
+version = "0.2.0"
 description = "Production pipeline: MELD Graph lesion prediction + CBF perfusion analysis (Snakemake)."
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "snakemake>=8",
+    "snakemake>=8,<10",
     "snakemake-executor-plugin-slurm>=0.10",
     "click>=8",
-    "pandas>=1.5",
+    "pandas>=1.5,<3",
     "pyyaml>=6",
-    "nibabel>=4",
+    "nibabel>=4,<6",
     "nilearn>=0.10",
     "matplotlib>=3.5",
+    "openpyxl>=3.1",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4"]
 
 [project.scripts]
 meldcbf = "meldcbf.cli:main"
 
 [tool.setuptools]
 packages = ["meldcbf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

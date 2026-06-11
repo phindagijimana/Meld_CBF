@@ -19,12 +19,15 @@ pip install -e .            # provides the `meldcbf` command
 ## Quick start
 
 ```bash
-meldcbf check                 # validate image / licenses / models / runtime
+cp config/config.example.yaml config/config.yaml   # first-time site setup
+meldcbf check                 # validate image / licenses / paths / runtime
 meldcbf samples               # build the cohort sheet (config/samples.tsv)
 
 meldcbf run sub-002           # one subject, end-to-end (MELD recon is slow)
+meldcbf run --aggregate sub-002   # through cohort roll-up
 meldcbf run --profile slurm   # whole cohort on SLURM
-meldcbf aggregate             # cohort stats table + concordance call
+meldcbf aggregate             # cohort stats (partial cohort OK)
+meldcbf sync                  # deliver results to NAS (config: nas_dest)
 meldcbf status                # per-subject progress
 ```
 
@@ -65,6 +68,22 @@ $$\mathrm{frac\_hypo} = \frac{\#\{\mathrm{cluster\ voxels\ with\ } z < \mathrm{h
 $$\mathrm{dice\_hypo} = \frac{2\,|\mathrm{cluster} \cap \mathrm{hypo\_GM}|}{|\mathrm{cluster}| + |\mathrm{hypo\_GM}|}$$
 
 Cohort concordance call (`meldcbf aggregate`): **hypoperfused** if `roi_asym_pct ≤ asym_concordance_pct` (default −8%); **spatial_concordant** if `dice_hypo ≥ dice_concordance` (default 0.10).
+
+## Production checklist
+
+| Step | Command |
+|------|---------|
+| Site config | `cp config/config.example.yaml config/config.yaml` and edit paths |
+| Preflight | `meldcbf check` |
+| Cohort sheet | `meldcbf samples` |
+| Run (SLURM) | `meldcbf run --profile slurm --aggregate` |
+| Monitor | `meldcbf status` / `squeue -u $USER` |
+| Partial cohort table | `meldcbf aggregate` (uses completed subjects only) |
+| Deliver to NAS | `meldcbf sync` |
+| Tests (dev) | `pytest -q` |
+
+Config keys for production: `allow_partial_aggregate`, `nas_dest`, `container_tag`.
+See **[USER_GUIDE.md](USER_GUIDE.md)** for troubleshooting, security, and NAS sync.
 
 ## More
 

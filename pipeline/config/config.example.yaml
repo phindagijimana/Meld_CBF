@@ -1,0 +1,55 @@
+# ===========================================================================
+# config.example.yaml — site template for the MELD + CBF pipeline
+#
+# Copy to config/config.yaml and edit paths for your environment:
+#   cp config/config.example.yaml config/config.yaml
+#
+# Do NOT commit config.yaml with real institutional paths to a public repo.
+# ===========================================================================
+
+# --- Project layout --------------------------------------------------------
+project_root:  /path/to/Meld_CBF
+pipeline_dir:  /path/to/Meld_CBF/pipeline
+data_dir:      /path/to/Meld_CBF/data
+work:          /path/to/Meld_CBF/work
+mapping:       /path/to/Meld_CBF/CBF_BIDS_SUB.csv
+resolution_csv: /path/to/Meld_CBF/pipeline/CBF_session_resolution.csv
+samples:       /path/to/Meld_CBF/pipeline/config/samples.tsv
+
+# --- Raw upstream sources ---------------------------------------------------
+bids_root:     /path/to/CIDUR_BIDS/data_bids
+cbf_src_root:  /path/to/CBF_T1_rage
+fallback_session: ses-1
+
+# --- MELD container assets --------------------------------------------------
+meld_install:    /path/to/meld_graph/meld_data
+sif:             /path/to/meld_graph/meld_data/docker_version/meld_graph_v2.2.4.sif
+fs_license:      /path/to/meld_graph/meld_data/docker_version/freesurfer_license.txt
+meld_license:    /path/to/meld_graph/meld_data/docker_version/meld_license.txt
+models_src:      /path/to/meld_graph/meld_data/models
+meld_params_src: /path/to/meld_graph/meld_data/meld_params
+container_tag:   meld_graph_v2.2.4
+
+# --- Container runtime ------------------------------------------------------
+apptainer_bin:      apptainer
+freesurfer_home_in: /opt/freesurfer-7.2.0
+meld_fastsurfer:    false
+
+# --- Statistics parameters --------------------------------------------------
+hypo_z: -1.5
+asym_concordance_pct: -8.0
+dice_concordance: 0.10
+
+# --- Production options -----------------------------------------------------
+# Aggregate cohort table from completed subjects only (do not block on failures).
+allow_partial_aggregate: true
+
+# NAS deliverable destination (used by `meldcbf sync` / sync_to_nas.sh).
+nas_dest: /mnt/nfs/Gugger_Lab/MELD_CBF
+
+# --- Resource hints (SLURM profile) -----------------------------------------
+resources:
+  meld:      { mem_mb: 64000, cpus_per_task: 8, runtime: 1440 }
+  register:  { mem_mb: 16000, cpus_per_task: 2, runtime: 120 }
+  visualize: { mem_mb: 8000,  cpus_per_task: 1, runtime: 30 }
+  prepare:   { mem_mb: 4000,  cpus_per_task: 1, runtime: 20 }

@@ -5,7 +5,7 @@ executor: slurm
 jobs: 16                 # max concurrently-queued jobs
 printshellcmds: True
 rerun-incomplete: True
-restart-times: 1
+restart-times: 3
 latency-wait: 60
 
 # Cluster-wide defaults; override per rule below.
@@ -29,3 +29,6 @@ set-resources:
   visualize:
     mem_mb: 8000
     runtime: 30
+  prepare:
+    mem_mb: 4000
+    runtime: 20

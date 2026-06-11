@@ -79,9 +79,8 @@ if not (same_shape and same_aff):
     print("[register][WARNING] grids differ; overlay may be misaligned")
 PY
 else
-    echo "[register][WARNING] no prediction.nii.gz yet — skipping grid check and cluster stats"
-    echo "[register] DONE (CBF aligned to MELD T1): ${CBF_OUT}"
-    exit 0
+    echo "[register][ERROR] no prediction.nii.gz — MELD must finish before stats"
+    exit 1
 fi
 
 # --- 4. Quantitative CBF <-> prediction statistics -------------------------
@@ -89,7 +88,8 @@ fi
 # and concordance (Dice + fraction hypoperfused). See cbf_stats.py.
 APARC="${FS_SUBJECTS}/${SUBJECT}/mri/aparc+aseg.mgz"
 echo "[register] computing CBF<->prediction stats -> ${STATS_CSV}"
-python /pipeline/cbf_stats.py "${SUBJECT}" "${CBF_OUT}" "${PRED_NII}" "${APARC}" "${STATS_CSV}" ${HYPO_Z}
+python /pipeline/cbf_stats.py "${SUBJECT}" "${CBF_OUT}" "${PRED_NII}" "${APARC}" "${STATS_CSV}" ${HYPO_Z} \
+    || { echo "[register][ERROR] cbf_stats.py failed"; exit 1; }
 
 echo "[register] DONE: ${CBF_OUT}"
 echo "[register] STATS: ${STATS_CSV}"

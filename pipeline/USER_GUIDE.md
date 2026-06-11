@@ -178,3 +178,57 @@ python3 resolve_cbf_session.py
   `output/cbf_aligned/<sub>/cbf_in_meld.nii.gz`, and
   `output/predictions_reports/<sub>/predictions/prediction.nii.gz` together in
   freeview — all three are on the same grid.
+
+## Production operations
+
+### First-time setup
+
+1. Copy `config/config.example.yaml` → `config/config.yaml` and set all paths.
+2. Generate session resolution: `python3 resolve_cbf_session.py`
+3. Build cohort sheet: `meldcbf samples`
+4. Preflight: `meldcbf check` (or `meldcbf validate-config`)
+
+**Security:** do not commit `config.yaml` with real institutional paths to a
+public repository. Patient imaging and identifier tables are gitignored
+(`data/`, `work/`, `CBF_BIDS_SUB.csv`, `samples.tsv`).
+
+### Partial cohorts
+
+`allow_partial_aggregate: true` (default) lets `meldcbf aggregate` build the
+cohort table from whichever subjects finished `register`, without blocking on
+failures. Set to `false` to require every subject in `samples.tsv`.
+
+### NAS delivery
+
+Results are synced to `nas_dest` (default `/mnt/nfs/Gugger_Lab/MELD_CBF`):
+
+```bash
+meldcbf sync                    # all completed subjects + cohort CSV
+meldcbf sync sub-002            # one subject
+meldcbf sync --dry-run          # preview rsync plan
+meldcbf sync --fs sub-002       # include FreeSurfer recon (~1.2 GB/subject)
+```
+
+Background watcher (optional): `pipeline/watch_and_sync.sh --config config/config.yaml --full sub-001`
+
+Logs: `work/logs/sync_to_nas.log`
+
+### Troubleshooting
+
+| Symptom | Likely cause | Action |
+|---------|--------------|--------|
+| MELD aborts immediately | Stale partial recon | Re-run `meldcbf meld <sub>` (auto-cleans stale outputs) |
+| `register` fails | MELD not finished | Check `work/logs/meld_<sub>.log` |
+| Empty stats CSV | MELD-negative subject | Expected — `cluster=none` |
+| Aggregate empty | No register outputs | `meldcbf register` on at least one subject |
+| SLURM pending forever | Queue priority | Check `squeue`; reduce `-j` concurrency |
+| Viz fails | Missing inputs | Ensure `register` completed; check `visualize_<sub>.log` |
+
+### CI / testing
+
+```bash
+pip install -e ".[dev]"
+pytest -q
+```
+
+GitHub Actions runs tests on push to `main` (`.github/workflows/ci.yml`).

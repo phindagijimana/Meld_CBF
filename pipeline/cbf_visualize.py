@@ -33,6 +33,13 @@ def lesion_cut_coords(pred_img):
     return tuple(xyz)
 
 
+def require_file(path, label):
+    if not os.path.isfile(path):
+        print(f"[viz][ERROR] missing {label}: {path}", file=sys.stderr)
+        return False
+    return True
+
+
 def main():
     if len(sys.argv) != 6:
         print(__doc__)
@@ -40,9 +47,13 @@ def main():
     subject, t1_path, pred_path, cbf_path, out_dir = sys.argv[1:6]
     os.makedirs(out_dir, exist_ok=True)
 
+    if not require_file(t1_path, "T1"):
+        return 1
+
+    written = []
     t1 = image.load_img(t1_path)
-    has_pred = os.path.isfile(pred_path)
-    has_cbf = os.path.isfile(cbf_path)
+    has_pred = require_file(pred_path, "prediction")
+    has_cbf = require_file(cbf_path, "CBF")
     pred = image.load_img(pred_path) if has_pred else None
     cut = lesion_cut_coords(pred) if has_pred else None
     disp_mode = "ortho"
@@ -55,6 +66,7 @@ def main():
             cut_coords=cut, display_mode=disp_mode, title=f"{subject}: MELD prediction",
             cmap="autumn", alpha=0.7, black_bg=True)
         d.savefig(out, dpi=150); d.close()
+        written.append(out)
         print(f"[viz] wrote {out}")
 
     # 2. CBF over T1 with lesion contour
@@ -69,6 +81,7 @@ def main():
             d.add_contours(image.math_img("img > 0", img=pred),
                            levels=[0.5], colors="lime", linewidths=1.5)
         d.savefig(out, dpi=150); d.close()
+        written.append(out)
         print(f"[viz] wrote {out}")
 
         # 3. Multi-slice axial CBF through the lesion, with prediction contour
@@ -81,11 +94,16 @@ def main():
             d.add_contours(image.math_img("img > 0", img=pred),
                            levels=[0.5], colors="lime", linewidths=1.5)
             d.savefig(out, dpi=150); d.close()
+            written.append(out)
             print(f"[viz] wrote {out}")
-    else:
-        print("[viz] no cbf_in_meld.nii.gz — only prediction figure produced")
+    elif has_pred:
+        print("[viz] no cbf_in_meld.nii.gz — prediction figure only")
 
-    print(f"[viz] DONE: {out_dir}")
+    if not written:
+        print("[viz][ERROR] no figures produced", file=sys.stderr)
+        return 1
+
+    print(f"[viz] DONE: {len(written)} figure(s) in {out_dir}")
     return 0
 
 

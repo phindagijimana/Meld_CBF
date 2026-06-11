@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# meld_cbf_pipeline.sh
+# meld_cbf_pipeline.sh  — DEPRECATED: use `meldcbf` CLI + Snakemake instead.
 #
 # End-to-end pipeline: run MELD Graph on a subject, then bring that subject's
 # CBF map into MELD's prediction space.

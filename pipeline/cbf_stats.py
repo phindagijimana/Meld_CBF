@@ -36,10 +36,18 @@ def load_like(path, ref_img):
         return np.asarray(img.get_fdata())
     try:
         from nilearn.image import resample_to_img
-        img = resample_to_img(img, ref_img, interpolation="nearest")
-    except Exception as e:
-        print(f"[stats][WARN] could not resample {os.path.basename(path)}: {e}")
-    return np.asarray(img.get_fdata())
+        resampled = resample_to_img(img, ref_img, interpolation="nearest")
+    except Exception as exc:
+        raise RuntimeError(
+            f"could not resample {os.path.basename(path)} onto CBF grid: {exc}"
+        ) from exc
+    out = resampled if hasattr(resampled, "get_fdata") else resampled
+    data = np.asarray(out.get_fdata() if hasattr(out, "get_fdata") else out)
+    if data.shape[:3] != ref_img.shape[:3]:
+        raise RuntimeError(
+            f"{os.path.basename(path)} shape {data.shape[:3]} != CBF {ref_img.shape[:3]}"
+        )
+    return data
 
 
 def is_cortical(lbl):
@@ -113,6 +121,8 @@ def main():
     cbf_img = nib.load(cbf_path)
     cbf = np.asarray(cbf_img.get_fdata())
     pred = load_like(pred_path, cbf_img)
+    if not np.any(pred > 0):
+        print(f"[stats] no lesion voxels in {os.path.basename(pred_path)}")
     vox = float(abs(np.linalg.det(cbf_img.affine[:3, :3])))
 
     have_aparc = os.path.isfile(aparc_path)

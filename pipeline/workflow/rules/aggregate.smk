@@ -1,13 +1,36 @@
 # aggregate.smk — roll every subject's stats into one cohort table and add an
 # epilepsy concordance call (see scripts/aggregate_stats.py).
+#
+# Uses only *existing* per-subject CSVs so a partial cohort does not block the
+# cohort table (see config: allow_partial_aggregate).
+
+def stats_csvs_available(wildcards):
+    files = [cbf_stats_csv(s) for s in SUBJECTS if os.path.isfile(cbf_stats_csv(s))]
+    if not files:
+        raise WorkflowError(
+            "No per-subject stats CSVs found. Run `meldcbf register` for at least one subject."
+        )
+    allow = config.get("allow_partial_aggregate", True)
+    if not allow:
+        missing = [s for s in SUBJECTS if not os.path.isfile(cbf_stats_csv(s))]
+        if missing:
+            raise WorkflowError(
+                f"allow_partial_aggregate=false but missing stats for: {', '.join(missing)}"
+            )
+    return files
+
+
 rule aggregate:
     input:
-        csvs=expand(cbf_stats_csv("{sub}"), sub=SUBJECTS),
+        csvs=stats_csvs_available,
     output:
         csv=COHORT_CSV,
     params:
         asym=config["asym_concordance_pct"],
         dice=config["dice_concordance"],
+        allow_partial=config.get("allow_partial_aggregate", True),
+        expected=len(SUBJECTS),
+        pipeline_version=config.get("container_tag", "unknown"),
     log:
         os.path.join(LOG_DIR, "aggregate.log"),
     script:

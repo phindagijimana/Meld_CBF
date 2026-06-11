@@ -8,9 +8,11 @@ stage subcommands. Examples:
     meldcbf check                       # validate container assets / runtime
     meldcbf samples                     # (re)build the cohort sample sheet
     meldcbf run sub-002                 # full pipeline for one subject
+    meldcbf run --aggregate sub-002     # through cohort roll-up
     meldcbf meld                        # MELD for every sample (use --profile slurm)
     meldcbf register sub-002 sub-008    # CBF -> MELD space + stats
     meldcbf aggregate                   # cohort roll-up + concordance call
+    meldcbf sync                        # deliver results to NAS
     meldcbf status                      # per-subject progress table
     meldcbf run --profile slurm         # whole cohort on SLURM
     meldcbf -n all                      # dry-run the full DAG
@@ -25,10 +27,14 @@ from pathlib import Path
 import click
 import yaml
 
+from meldcbf import __version__
+from meldcbf.validate import validate_config
+
 PIPE = Path(__file__).resolve().parent.parent          # …/Meld_CBF/pipeline
 SNAKEFILE = PIPE / "workflow" / "Snakefile"
 DEFAULT_CONFIG = PIPE / "config" / "config.yaml"
 BUILD_SAMPLES = PIPE / "workflow" / "scripts" / "build_samples.py"
+SYNC_SCRIPT = PIPE / "sync_to_nas.sh"
 PROFILES = PIPE / "profiles"
 
 STAGES = ("prepare", "meld", "register", "visualize")
@@ -103,6 +109,42 @@ def _run_stage(ctx, stage, subs):
     sys.exit(_snakemake(ctx, targets))
 
 
+def _run_check(cfg):
+    ok = True
+
+    def chk(label, cond, detail=""):
+        nonlocal ok
+        ok = ok and cond
+        mark = click.style("OK  ", fg="green") if cond else click.style("MISS", fg="red")
+        click.echo(f"  [{mark}] {label}{(' — ' + detail) if detail else ''}")
+
+    def warn(label, detail=""):
+        click.echo(f"  [{click.style('WARN', fg='yellow')}] {label}{(' — ' + detail) if detail else ''}")
+
+    chk("apptainer runtime", bool(shutil.which(cfg.get("apptainer_bin", "apptainer"))),
+        cfg.get("apptainer_bin", "apptainer"))
+    chk("snakemake", bool(shutil.which("snakemake")))
+    for key in ("sif", "fs_license", "meld_license", "mapping", "resolution_csv"):
+        chk(key, os.path.isfile(cfg.get(key, "")), cfg.get(key, ""))
+    for key in ("models_src", "meld_params_src", "bids_root", "cbf_src_root"):
+        chk(key, os.path.isdir(cfg.get(key, "")), cfg.get(key, ""))
+    work = cfg.get("work", "")
+    chk("work writable", os.path.isdir(work) and os.access(work, os.W_OK), work)
+    n = len(_load_samples(cfg))
+    chk("samples.tsv", n > 0, f"{n} sample(s)" if n else "run `meldcbf samples`")
+    chk("sbatch (SLURM)", bool(shutil.which("sbatch")), "optional")
+
+    errors, warnings = validate_config(cfg)
+    for w in warnings:
+        warn("config", w)
+    for e in errors:
+        chk("config", False, e)
+
+    if not ok or errors:
+        raise click.ClickException("check failed — fix the MISS items above.")
+    click.secho(f"check passed (meldcbf {__version__}).", fg="green")
+
+
 # --------------------------------------------------------------------------- CLI
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--configfile", default=str(DEFAULT_CONFIG), show_default=False,
@@ -114,11 +156,15 @@ def _run_stage(ctx, stage, subs):
 @click.option("--cores", default=1, show_default=True, type=int,
               help="Local cores (ignored when --profile is set).")
 @click.option("-n", "--dry-run", is_flag=True, help="Show the plan, run nothing.")
+@click.version_option(__version__, prog_name="meldcbf")
 @click.pass_context
 def cli(ctx, configfile, profile, jobs, cores, dry_run):
     """MELD + CBF pipeline driver."""
     if not os.path.isfile(configfile):
-        raise click.ClickException(f"Config not found: {configfile}")
+        raise click.ClickException(
+            f"Config not found: {configfile}\n"
+            f"Copy config/config.example.yaml to config/config.yaml and edit paths."
+        )
     ctx.obj = dict(configfile=configfile, profile=profile, jobs=jobs,
                    cores=cores, dry_run=dry_run)
 
@@ -137,27 +183,22 @@ def samples(ctx):
 def check(ctx):
     """Validate container assets, licenses, mapping and runtime."""
     cfg = _load_config(ctx.obj["configfile"])
-    ok = True
+    _run_check(cfg)
 
-    def chk(label, cond, detail=""):
-        nonlocal ok
-        ok = ok and cond
-        mark = click.style("OK  ", fg="green") if cond else click.style("MISS", fg="red")
-        click.echo(f"  [{mark}] {label}{(' — ' + detail) if detail else ''}")
 
-    chk("apptainer runtime", bool(shutil.which(cfg.get("apptainer_bin", "apptainer"))),
-        cfg.get("apptainer_bin", "apptainer"))
-    chk("snakemake", bool(shutil.which("snakemake")))
-    for key in ("sif", "fs_license", "meld_license", "mapping"):
-        chk(key, os.path.isfile(cfg[key]), cfg[key])
-    for key in ("models_src", "meld_params_src"):
-        chk(key, os.path.isdir(cfg[key]), cfg[key])
-    n = len(_load_samples(cfg))
-    chk("samples.tsv", n > 0, f"{n} sample(s)" if n else "run `meldcbf samples`")
-    chk("sbatch (SLURM)", bool(shutil.which("sbatch")), "optional")
-    if not ok:
-        raise click.ClickException("check failed — fix the MISS items above.")
-    click.secho("check passed.", fg="green")
+@cli.command("validate-config")
+@click.pass_context
+def validate_config_cmd(ctx):
+    """Validate config.yaml keys and paths (non-destructive)."""
+    cfg = _load_config(ctx.obj["configfile"])
+    errors, warnings = validate_config(cfg)
+    for w in warnings:
+        click.echo(click.style(f"WARN: {w}", fg="yellow"))
+    if errors:
+        for e in errors:
+            click.echo(click.style(f"ERROR: {e}", fg="red"))
+        raise click.ClickException(f"{len(errors)} validation error(s)")
+    click.secho("config valid.", fg="green")
 
 
 @cli.command()
@@ -193,15 +234,19 @@ def visualize(ctx, subjects):
 
 
 @cli.command()
+@click.option("--aggregate", "with_aggregate", is_flag=True,
+              help="Also build the cohort stats table after visualize.")
 @click.argument("subjects", nargs=-1)
 @click.pass_context
-def run(ctx, subjects):
+def run(ctx, with_aggregate, subjects):
     """Full pipeline (through visualize) for SUBJECTS (default: all)."""
     cfg = _load_config(ctx.obj["configfile"])
     subjects = _resolve_subjects(cfg, subjects)
     if not subjects:
         raise click.ClickException("No samples. Run `meldcbf samples` first.")
     targets = [_target(cfg, "visualize", s) for s in subjects]
+    if with_aggregate:
+        targets.append(f"{cfg['work']}/output/cbf_cohort_stats.csv")
     sys.exit(_snakemake(ctx, targets))
 
 
@@ -211,6 +256,25 @@ def aggregate(ctx):
     """Build the cohort stats table + epilepsy concordance call."""
     cfg = _load_config(ctx.obj["configfile"])
     sys.exit(_snakemake(ctx, [f"{cfg['work']}/output/cbf_cohort_stats.csv"]))
+
+
+@cli.command()
+@click.option("--fs", "include_fs", is_flag=True, help="Include FreeSurfer recon outputs.")
+@click.option("--dry-run", is_flag=True, help="Show rsync plan without copying.")
+@click.argument("subjects", nargs=-1)
+@click.pass_context
+def sync(ctx, include_fs, dry_run, subjects):
+    """Sync completed deliverables to the NAS destination (config: nas_dest)."""
+    if not SYNC_SCRIPT.is_file():
+        raise click.ClickException(f"sync script not found: {SYNC_SCRIPT}")
+    cmd = ["bash", str(SYNC_SCRIPT), "--config", ctx.obj["configfile"]]
+    if include_fs:
+        cmd.append("--fs")
+    if dry_run:
+        cmd.append("--dry-run")
+    cmd.extend(subjects)
+    click.secho("$ " + " ".join(cmd), fg="cyan")
+    sys.exit(subprocess.run(cmd).returncode)
 
 
 @cli.command(name="all")
@@ -245,6 +309,11 @@ def status(ctx):
              else click.style(f"{'-':<12}", fg="yellow")) for c in cols)
         click.echo(f"{s:<12}" + row)
     click.echo(f"{'TOTAL':<12}" + "".join(f"{str(tally[c]) + '/' + str(len(subs)):<12}" for c in cols))
+    cohort = f"{cfg['work']}/output/cbf_cohort_stats.csv"
+    if os.path.isfile(cohort):
+        click.echo(f"cohort table: {cohort}")
+    else:
+        click.echo(click.style("cohort table: not built (run `meldcbf aggregate`)", fg="yellow"))
 
 
 @cli.command()

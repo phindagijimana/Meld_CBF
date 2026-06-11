@@ -44,6 +44,13 @@ asym_concordance_pct: -8.0
 # Minimum Dice(cluster, hypoperfused GM) to call spatial concordance.
 dice_concordance: 0.10
 
+# --- Production options -----------------------------------------------------
+# Build cohort table from completed subjects only (partial cohorts OK).
+allow_partial_aggregate: true
+# NAS deliverable destination (`meldcbf sync` / sync_to_nas.sh).
+nas_dest: /mnt/nfs/Gugger_Lab/MELD_CBF
+container_tag: meld_graph_v2.2.4
+
 # --- Resource hints (consumed by the SLURM profile via set-resources) -------
 # MELD includes a full FreeSurfer/FastSurfer recon: give it real time + memory.
 resources:
