@@ -1,13 +1,11 @@
 """
-aggregate_stats.py — Snakemake script. Concatenate per-subject CBF stats and
-add an epilepsy concordance call on the whole-lesion (`all_clusters`) row.
+aggregate_stats.py — Snakemake script. Concatenate per-subject CBF stats into an
+AI-focused cohort table (roi_asym_pct + cluster_mirror_ai).
 
-Concordance logic (thresholds from config):
-  hypoperfused       = roi_asym_pct <= asym_concordance_pct   (ipsilateral hypoperfusion)
-  spatial_concordant = dice_hypo    >= dice_concordance        (cluster overlaps hypoperfused GM)
-  concordance_call   = "concordant"  if (hypoperfused and spatial_concordant)
-                       "partial"     if (hypoperfused or  spatial_concordant)
-                       "discordant"  otherwise
+Primary endpoint: ipsilateral hypoperfusion via asymmetry index (AI).
+  roi_hypoperfused    = roi_asym_pct <= asym_threshold_pct
+  mirror_hypoperfused = cluster_mirror_ai < 0
+  ai_hypoperfused     = either flag true (lesion / ROI level)
 """
 import sys
 
@@ -15,11 +13,29 @@ import pandas as pd
 
 inputs = list(snakemake.input.csvs)
 asym_thr = float(snakemake.params.asym)
-dice_thr = float(snakemake.params.dice)
 allow_partial = bool(snakemake.params.allow_partial)
 expected = int(snakemake.params.expected)
 out_csv = snakemake.output.csv
 pipeline_version = snakemake.params.pipeline_version
+
+AI_COLUMNS = [
+    "subject",
+    "cluster",
+    "n_voxels",
+    "volume_mm3",
+    "host_roi",
+    "host_roi_name",
+    "ipsi_roi_cbf",
+    "contra_roi_cbf",
+    "roi_asym_pct",
+    "cluster_mirror_ipsi_cbf",
+    "cluster_mirror_contra_cbf",
+    "cluster_mirror_ai",
+    "roi_hypoperfused",
+    "mirror_hypoperfused",
+    "ai_hypoperfused",
+    "pipeline_version",
+]
 
 frames = []
 read_errors = []
@@ -50,29 +66,32 @@ if not allow_partial and len(frames) < expected:
     sys.exit(1)
 
 
-def call_row(r):
-    asym = pd.to_numeric(r.get("roi_asym_pct"), errors="coerce")
-    dice = pd.to_numeric(r.get("dice_hypo"), errors="coerce")
-    hypo = pd.notna(asym) and asym <= asym_thr
-    spat = pd.notna(dice) and dice >= dice_thr
+def ai_flags(r):
+    roi_asym = pd.to_numeric(r.get("roi_asym_pct"), errors="coerce")
+    mirror_ai = pd.to_numeric(r.get("cluster_mirror_ai"), errors="coerce")
+    roi_hypo = pd.notna(roi_asym) and roi_asym <= asym_thr
+    mirror_hypo = pd.notna(mirror_ai) and mirror_ai < 0
     return pd.Series({
-        "hypoperfused": bool(hypo),
-        "spatial_concordant": bool(spat),
-        "concordance_call": ("concordant" if (hypo and spat)
-                             else "partial" if (hypo or spat)
-                             else "discordant"),
+        "roi_hypoperfused": bool(roi_hypo),
+        "mirror_hypoperfused": bool(mirror_hypo),
+        "ai_hypoperfused": bool(roi_hypo or mirror_hypo),
     })
 
 
 cohort = pd.concat(frames, ignore_index=True)
-cohort = pd.concat([cohort, cohort.apply(call_row, axis=1)], axis=1)
+cohort = pd.concat([cohort, cohort.apply(ai_flags, axis=1)], axis=1)
 cohort["pipeline_version"] = pipeline_version
-cohort.to_csv(out_csv, index=False)
+cohort[AI_COLUMNS].to_csv(out_csv, index=False)
 
 lesion = cohort[cohort["cluster"] == "all_clusters"]
-n = len(lesion)
-conc = int((lesion["concordance_call"] == "concordant").sum())
-part = int((lesion["concordance_call"] == "partial").sum())
+n_lesion = len(lesion)
+roi_n = int(lesion["roi_hypoperfused"].sum()) if n_lesion else 0
+mir_n = int(lesion["mirror_hypoperfused"].sum()) if n_lesion else 0
+ai_n = int(lesion["ai_hypoperfused"].sum()) if n_lesion else 0
+neg = cohort[cohort["cluster"] == "none"]
 print(f"[aggregate] {len(cohort)} rows from {len(frames)}/{expected} subject(s) -> {out_csv}")
-print(f"[aggregate] lesion-level concordance: {conc}/{n} concordant, "
-      f"{part}/{n} partial (asym<={asym_thr}%, dice>={dice_thr})")
+print(f"[aggregate] AI (all_clusters): roi_hypo {roi_n}/{n_lesion}, "
+      f"mirror_hypo {mir_n}/{n_lesion}, either {ai_n}/{n_lesion} "
+      f"(roi_asym<={asym_thr}%, mirror_ai<0)")
+if len(neg):
+    print(f"[aggregate] MELD-negative (cluster=none): {len(neg)}")

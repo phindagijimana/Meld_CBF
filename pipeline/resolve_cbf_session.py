@@ -21,14 +21,17 @@ import csv
 import sys
 import pandas as pd
 
-CIDUR_DATA = os.environ.get("CIDUR_DATA",
-    "/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CIDUR_data")
-XLSX = os.environ.get("BIDS_XLSX",
-    "/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CIDUR_BIDS/COMPLETE_BIDS_MAPPING_FINAL.xlsx")
-MAPPING = os.environ.get("MAPPING",
-    "/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/CBF_BIDS_SUB.csv")
-OUT = os.environ.get("OUT",
-    "/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_CBF/pipeline/CBF_session_resolution.csv")
+def _env_path(name):
+    val = os.environ.get(name)
+    if not val:
+        sys.exit(f"Set {name} to the path for this site (see config/config.example.yaml).")
+    return val
+
+
+CIDUR_DATA = _env_path("CIDUR_DATA")
+XLSX = _env_path("BIDS_XLSX")
+MAPPING = _env_path("MAPPING")
+OUT = _env_path("OUT")
 
 T1_RE = re.compile(r"(mprage|mp_rage|mp-rage|sag.*t1|t1.*mprage)", re.I)
 

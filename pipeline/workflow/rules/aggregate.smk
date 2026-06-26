@@ -1,5 +1,5 @@
-# aggregate.smk — roll every subject's stats into one cohort table and add an
-# epilepsy concordance call (see scripts/aggregate_stats.py).
+# aggregate.smk — roll every subject's stats into one AI-focused cohort table
+# (roi_asym_pct + cluster_mirror_ai; see scripts/aggregate_stats.py).
 #
 # Uses only *existing* per-subject CSVs so a partial cohort does not block the
 # cohort table (see config: allow_partial_aggregate).
@@ -27,7 +27,6 @@ rule aggregate:
         csv=COHORT_CSV,
     params:
         asym=config["asym_concordance_pct"],
-        dice=config["dice_concordance"],
         allow_partial=config.get("allow_partial_aggregate", True),
         expected=len(SUBJECTS),
         pipeline_version=config.get("container_tag", "unknown"),

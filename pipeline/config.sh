@@ -14,7 +14,7 @@ PIPE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${PIPE_DIR}/.." && pwd)"
 
 # --- MELD container assets (reuse the existing institutional install) -------
-MELD_INSTALL="${MELD_INSTALL:-/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/meld_graph/meld_data}"
+MELD_INSTALL="${MELD_INSTALL:-}"
 SIF="${SIF:-${MELD_INSTALL}/docker_version/meld_graph_v2.2.4.sif}"
 FS_LICENSE="${FS_LICENSE:-${MELD_INSTALL}/docker_version/freesurfer_license.txt}"
 MELD_LICENSE="${MELD_LICENSE:-${MELD_INSTALL}/docker_version/meld_license.txt}"
@@ -37,8 +37,8 @@ RESOLUTION_CSV="${RESOLUTION_CSV:-${PIPE_DIR}/CBF_session_resolution.csv}"
 LOG_DIR="${LOG_DIR:-${WORK}/logs}"
 
 # --- Upstream raw sources (used by the `prepare` stage) ---------------------
-CBF_SRC_ROOT="${CBF_SRC_ROOT:-/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CBF_T1_rage}"
-BIDS_ROOT="${BIDS_ROOT:-/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/CIDUR_BIDS/data_bids}"
+CBF_SRC_ROOT="${CBF_SRC_ROOT:-}"
+BIDS_ROOT="${BIDS_ROOT:-}"
 # Fallback BIDS session if a subject is absent from RESOLUTION_CSV.
 T1_SESSION="${T1_SESSION:-ses-1}"
 

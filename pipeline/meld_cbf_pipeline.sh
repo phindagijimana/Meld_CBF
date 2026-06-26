@@ -273,30 +273,15 @@ cmd_slurm() {
 }
 
 # ---------------------------------------------------------------------------
-# cmd_aggregate — concatenate per-subject stats CSVs into one cohort table
+# cmd_aggregate — build AI-focused cohort table (delegates to meldcbf)
 # ---------------------------------------------------------------------------
 cmd_aggregate() {
-    local master="${WORK}/output/cbf_cohort_stats.csv"
-    local first=1 n=0
-    : > "${master}.tmp"
-    while IFS= read -r bids; do
-        local csv="${WORK}/output/cbf_aligned/${bids}/cbf_in_clusters_${bids}.csv"
-        [[ -f "${csv}" ]] || continue
-        if [[ ${first} -eq 1 ]]; then
-            head -1 "${csv}" > "${master}.tmp"; first=0
-        fi
-        tail -n +2 "${csv}" >> "${master}.tmp"
-        ((n+=1))
-    done < <(all_bids_ids)
-    if [[ ${n} -eq 0 ]]; then
-        rm -f "${master}.tmp"
-        warn "No per-subject stats found yet (run 'register' first)."
-        return 0
+    if command -v meldcbf >/dev/null 2>&1; then
+        meldcbf aggregate
+        return $?
     fi
-    mv "${master}.tmp" "${master}"
-    ok "Aggregated ${n} subject(s) -> ${master}"
-    info "Lesion (all_clusters) rows:"
-    awk -F, 'NR==1 || $2=="all_clusters"' "${master}" | column -s, -t | head -40
+    warn "meldcbf not found; install with 'pip install -e .' and run 'meldcbf aggregate'"
+    return 1
 }
 
 # ---------------------------------------------------------------------------

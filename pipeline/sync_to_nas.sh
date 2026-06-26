@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Sync MELD / MELD+CBF results to the lab NAS share.
 #
-# Destination defaults to config nas_dest (smb://smdnas/gugger_lab/MELD_CBF
-# -> /mnt/nfs/Gugger_Lab/MELD_CBF on URMC compute nodes).
+# Destination defaults to config nas_dest (set in config/config.yaml).
 #
 # Copies per-subject deliverables (predictions, CBF stats/figures) plus the
 # cohort table when present. Safe to rerun while jobs are in flight.
@@ -40,7 +39,7 @@ PY
 }
 
 DEST="$(read_config nas_dest)"
-[[ -z "$DEST" ]] && DEST="/mnt/nfs/Gugger_Lab/MELD_CBF"
+[[ -z "$DEST" ]] && { echo "[sync][ERROR] nas_dest not set in config" >&2; exit 2; }
 WORK="$(read_config work)"
 OUT="${WORK}/output"
 LOGS="${WORK}/logs"

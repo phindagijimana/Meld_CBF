@@ -79,7 +79,7 @@ This is the file our wrapper expects at `MELD_DEPLOY_ROOT/meld_graph_v2.2.4.sif`
 
 ## 2. How `docker_version/meld-docker` wraps it
 
-Path: `/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/Documents/Meld_Graph/docker_version/meld-docker`
+Path: `/path/to/Meld_Graph/docker_version/meld-docker`
 
 A single self-contained Bash script (no Python deps, no `docker` runtime
 required) that turns the upstream Apptainer recipe into a small CLI for HPC use,
@@ -306,7 +306,7 @@ run` with `apptainer exec` and adding cohort/SLURM ergonomics.
 
 | Thing | Path |
 |------|------|
-| Wrapper | `/mnt/nfs/home/.../Documents/Meld_Graph/docker_version/meld-docker` |
+| Wrapper | `/path/to/Meld_Graph/docker_version/meld-docker` |
 | Cohort wrapper | `…/Meld_Graph/docker_version/meld_production.sh` |
 | Smoke test | `…/Meld_Graph/docker_version/meld_docker_smoke_test.sh` |
 | Site-override template | `…/Meld_Graph/docker_version/production.env.example` |

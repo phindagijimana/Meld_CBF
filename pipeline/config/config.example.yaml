@@ -45,7 +45,7 @@ dice_concordance: 0.10
 allow_partial_aggregate: true
 
 # NAS deliverable destination (used by `meldcbf sync` / sync_to_nas.sh).
-nas_dest: /mnt/nfs/Gugger_Lab/MELD_CBF
+nas_dest: /path/to/nas/MELD_CBF
 
 # --- Resource hints (SLURM profile) -----------------------------------------
 resources:

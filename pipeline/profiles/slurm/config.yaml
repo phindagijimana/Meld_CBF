@@ -2,7 +2,7 @@
 #   meldcbf run --profile slurm
 # Requires: pip install snakemake-executor-plugin-slurm
 executor: slurm
-jobs: 16                 # max concurrently-queued jobs
+jobs: 5                  # max concurrent SLURM jobs (override: meldcbf -j N)
 printshellcmds: True
 rerun-incomplete: True
 restart-times: 3

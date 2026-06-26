@@ -50,9 +50,9 @@ pipeline/
 │   ├── envs/meldcbf.yaml           host conda env
 │   └── scripts/
 │       ├── build_samples.py        builds samples.tsv from mapping + raw sources
-│       └── aggregate_stats.py      cohort roll-up + epilepsy concordance call
+│       └── aggregate_stats.py      cohort AI roll-up (roi + mirror asymmetry)
 ├── cbf_register_in_container.sh    (in-container) mri_coreg + mri_vol2vol -> cbf_stats.py
-├── cbf_stats.py                    (in-container) GM z-score / ROI asymmetry / concordance
+├── cbf_stats.py                    (in-container) CBF asymmetry index + supporting fields
 └── cbf_visualize.py                (in-container) headless PNG overlays
 ```
 
@@ -67,7 +67,7 @@ work/
     ├── cbf_in_meld.nii.gz          CBF on the prediction grid  ◄── main image output
     ├── cbf_in_clusters_<sub>.csv   per-cluster CBF stats (see below)
     └── figures/*.png               T1 / CBF / prediction overlays
-work/output/cbf_cohort_stats.csv    cohort table + concordance call (from `aggregate`)
+work/output/cbf_cohort_ai.csv       cohort AI table (from `aggregate`)
 ```
 
 The workflow **reuses the institutional MELD install** for the heavy assets
@@ -88,7 +88,7 @@ meldcbf prepare sub-002
 meldcbf meld sub-002
 meldcbf register sub-002 sub-008
 meldcbf visualize sub-002
-meldcbf aggregate                # cohort roll-up + concordance call
+meldcbf aggregate                # cohort AI roll-up
 
 # Whole cohort on SLURM (one job per rule, MELD gets 64G/8cpu/24h):
 meldcbf run --profile slurm -j 16
@@ -108,41 +108,35 @@ missing/outdated work, and a failed subject never blocks the others.
 > shares the same in-container scripts, but the Snakemake/CLI path is the
 > supported, production entrypoint.
 
-## CBF ↔ MELD statistics (`cbf_stats.py`)
+## CBF asymmetry index (`cbf_stats.py`)
 
-The registration only lands CBF on MELD's grid; the analytical value is here.
-For the whole predicted lesion (`all_clusters`) **and** each discrete cluster,
-`cbf_in_clusters_<sub>.csv` reports — all in MELD's conformed space, using the
-MELD run's own `aparc+aseg`:
+The registration lands CBF on MELD's conformed T1 grid; the **primary analysis**
+is asymmetry index (AI). For the whole predicted lesion (`all_clusters`) **and**
+each discrete cluster, `cbf_in_clusters_<sub>.csv` reports — in MELD's conformed
+space, using the MELD run's own `aparc+aseg`:
 
 | Column | Meaning |
 |--------|---------|
-| `cbf_mean/std/median`, `volume_mm3` | raw CBF inside the cluster |
-| `gm_z` | **GM-normalized z-score**: `(cluster mean − cortical-GM mean)/GM SD`. <0 ⇒ hypoperfused vs the subject's own cortex. |
+| `ipsi_roi_cbf`, `contra_roi_cbf` | mean CBF in host ROI vs its mirror-hemisphere homologue |
+| `roi_asym_pct` | **ROI AI** `(ipsi−contra)/mean×100`. Negative ⇒ ipsilateral hypoperfusion. **Primary cohort metric.** |
 | `host_roi`, `host_roi_name` | dominant Desikan/Destrieux region the cluster sits in |
-| `ipsi_roi_cbf`, `contra_roi_cbf` | mean CBF in that ROI vs its mirror-hemisphere homologue |
-| `roi_asym_pct` | **ROI contralateral asymmetry** `(ipsi−contra)/mean×100`. The classic perfusion-lesion sign; negative ⇒ ipsilateral hypoperfusion. |
-| `cluster_vs_contra_pct` | cluster CBF vs the contralateral ROI |
-| `cluster_mirror_ipsi_cbf` | mean CBF inside the lesion (same as `cbf_mean`) |
-| `cluster_mirror_contra_cbf` | mean CBF in the **mirror** of the lesion (cluster mask flipped L↔R on the registered CBF map) |
-| `cluster_mirror_ai` | **mirror asymmetry index** `(ipsi−contra)/(ipsi+contra)`. Range ~[−1, 1]; negative ⇒ ipsilateral hypoperfusion vs homotopic mirror. Note: `roi_asym_pct ≈ 200 × cluster_mirror_ai` when comparing the same pair with different denominators. |
-| `frac_hypo` | fraction of cluster voxels that are hypoperfused (`z < −1.5`) |
-| `dice_hypo` | **concordance**: Dice overlap between the MELD cluster and hypoperfused cortical GM. High ⇒ CBF independently corroborates MELD. |
+| `cluster_mirror_ipsi_cbf` | mean CBF inside the lesion |
+| `cluster_mirror_contra_cbf` | mean CBF in the **mirror** of the lesion (mask flipped L↔R) |
+| `cluster_mirror_ai` | **mirror AI** `(ipsi−contra)/(ipsi+contra)`. Range ~[−1, 1]; negative ⇒ ipsilateral hypoperfusion. |
 
-`meldcbf aggregate` concatenates every subject's CSV into
-`output/cbf_cohort_stats.csv` and adds an **epilepsy concordance call** on each
-lesion (thresholds in `config.yaml`):
+Other columns (`gm_z`, `frac_hypo`, `dice_hypo`, etc.) are computed for QC but
+are not part of the primary AI analysis.
+
+`meldcbf aggregate` builds `output/cbf_cohort_ai.csv` with AI columns and flags
+(threshold `asym_concordance_pct` in `config.yaml`, default −8%):
 
 | Column | Meaning |
 |--------|---------|
-| `hypoperfused` | `roi_asym_pct ≤ asym_concordance_pct` (default −8%) |
-| `spatial_concordant` | `dice_hypo ≥ dice_concordance` (default 0.10) |
-| `concordance_call` | `concordant` (both) / `partial` (either) / `discordant` (neither) |
+| `roi_hypoperfused` | `roi_asym_pct ≤ asym_concordance_pct` |
+| `mirror_hypoperfused` | `cluster_mirror_ai < 0` |
+| `ai_hypoperfused` | either flag true |
 
-This yields a one-line-per-patient table for group analysis, e.g. *"MELD lesions
-showed concordant hypoperfusion in N/28"* — the kind of result that supports a
-surgical-outcome study. Tune `hypo_z`, `asym_concordance_pct`, and
-`dice_concordance` in `config.yaml`.
+Use the `all_clusters` row per subject for group-level AI summaries.
 
 ## CBF ↔ BIDS session resolution
 
@@ -200,7 +194,7 @@ failures. Set to `false` to require every subject in `samples.tsv`.
 
 ### NAS delivery
 
-Results are synced to `nas_dest` (default `/mnt/nfs/Gugger_Lab/MELD_CBF`):
+Results are synced to `nas_dest` (set in `config/config.yaml`):
 
 ```bash
 meldcbf sync                    # all completed subjects + cohort CSV

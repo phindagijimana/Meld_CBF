@@ -54,7 +54,7 @@ def viz_flag(sub):
     return os.path.join(WORK, "output", "cbf_aligned", sub, "figures", ".done")
 
 
-COHORT_CSV = os.path.join(WORK, "output", "cbf_cohort_stats.csv")
+COHORT_CSV = os.path.join(WORK, "output", "cbf_cohort_ai.csv")
 
 
 # --- Resource lookup --------------------------------------------------------

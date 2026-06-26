@@ -1,9 +1,8 @@
 # MELD + CBF pipeline
 
 Runs **MELD Graph** lesion prediction on a subject's T1w, registers that
-subject's **CBF** map into MELD's prediction space, and computes quantitative
-CBF ↔ prediction statistics (GM-normalized z-score, contralateral asymmetry,
-and concordance) with a cohort-level epilepsy concordance call.
+subject's **CBF** map into MELD's T1 space, and computes **CBF asymmetry index
+(AI)** with a cohort-level roll-up.
 
 Orchestrated by **Snakemake** and driven by the **`meldcbf` CLI**. All
 neuroimaging runs inside the existing MELD apptainer image.
@@ -37,7 +36,7 @@ of subjects, or none for the full cohort. Everything is config-driven via
 - `cbf_aligned/<sub>/cbf_in_meld.nii.gz` — CBF on the prediction grid
 - `cbf_aligned/<sub>/cbf_in_clusters_<sub>.csv` — per-lesion CBF stats
 - `cbf_aligned/<sub>/figures/*.png` — T1 / CBF / prediction overlays
-- `cbf_cohort_stats.csv` — cohort table + per-patient concordance call
+- `cbf_cohort_ai.csv` — cohort AI table (`meldcbf aggregate`)
 
 ## Repository layout
 

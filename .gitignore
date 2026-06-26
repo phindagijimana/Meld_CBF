@@ -15,6 +15,7 @@ work/
 CBF_BIDS_SUB.csv
 pipeline/CBF_session_resolution.csv
 pipeline/config/samples.tsv
+pipeline/config/config.yaml
 
 # --- Python / tooling caches ---------------------------------------------
 __pycache__/

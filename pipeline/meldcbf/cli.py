@@ -246,16 +246,16 @@ def run(ctx, with_aggregate, subjects):
         raise click.ClickException("No samples. Run `meldcbf samples` first.")
     targets = [_target(cfg, "visualize", s) for s in subjects]
     if with_aggregate:
-        targets.append(f"{cfg['work']}/output/cbf_cohort_stats.csv")
+        targets.append(f"{cfg['work']}/output/cbf_cohort_ai.csv")
     sys.exit(_snakemake(ctx, targets))
 
 
 @cli.command()
 @click.pass_context
 def aggregate(ctx):
-    """Build the cohort stats table + epilepsy concordance call."""
+    """Build the cohort AI table (roi_asym_pct + cluster_mirror_ai)."""
     cfg = _load_config(ctx.obj["configfile"])
-    sys.exit(_snakemake(ctx, [f"{cfg['work']}/output/cbf_cohort_stats.csv"]))
+    sys.exit(_snakemake(ctx, [f"{cfg['work']}/output/cbf_cohort_ai.csv"]))
 
 
 @cli.command()
@@ -309,11 +309,11 @@ def status(ctx):
              else click.style(f"{'-':<12}", fg="yellow")) for c in cols)
         click.echo(f"{s:<12}" + row)
     click.echo(f"{'TOTAL':<12}" + "".join(f"{str(tally[c]) + '/' + str(len(subs)):<12}" for c in cols))
-    cohort = f"{cfg['work']}/output/cbf_cohort_stats.csv"
+    cohort = f"{cfg['work']}/output/cbf_cohort_ai.csv"
     if os.path.isfile(cohort):
-        click.echo(f"cohort table: {cohort}")
+        click.echo(f"cohort AI table: {cohort}")
     else:
-        click.echo(click.style("cohort table: not built (run `meldcbf aggregate`)", fg="yellow"))
+        click.echo(click.style("cohort AI table: not built (run `meldcbf aggregate`)", fg="yellow"))
 
 
 @cli.command()
